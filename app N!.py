@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-ANTHROPIC_API_KEY = "your-api-key-here"
+ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 
 st.markdown("""
 <style>
