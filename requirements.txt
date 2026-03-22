@@ -1,0 +1,5 @@
+streamlit
+trimesh
+anthropic
+numpy
+fpdf2
