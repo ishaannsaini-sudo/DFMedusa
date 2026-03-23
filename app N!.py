@@ -134,39 +134,26 @@ with tab1:
     file = st.file_uploader("Upload STL", type=["stl"])
 
     if file:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp.write(file.read())
-            path = tmp.name
+with tempfile.NamedTemporaryFile(delete=False) as tmp:
+    tmp.write(file.read())
+    path = tmp.name
 
-        mesh = trimesh.load(path)
-        os.unlink(path)
+try:
+    mesh = trimesh.load_mesh(path, file_type='stl')
 
-        geo = analyze_geometry(mesh)
-        issues = run_dfm_checks(geo, thresholds)
-        score = calculate_score(issues)
+    # Handle Scene → Mesh conversion
+    if isinstance(mesh, trimesh.Scene):
+        mesh = trimesh.util.concatenate(mesh.dump())
 
-        st.session_state["geo"] = geo
-        st.session_state["issues"] = issues
+    if mesh.is_empty:
+        st.error("Empty or invalid STL file.")
+        st.stop()
 
-        col1, col2 = st.columns(2)
+except Exception as e:
+    st.error(f"STL Load Error: {str(e)}")
+    st.stop()
 
-        with col1:
-            st.subheader("Geometry")
-            st.json(geo)
-
-        with col2:
-            st.metric("DFM Score", score)
-
-        st.subheader("Issues")
-        if not issues:
-            st.success("No issues")
-        else:
-            for i in issues:
-                st.warning(i["msg"])
-
-        st.subheader("AI Advice")
-        advice = get_ai_advice(geo, issues)
-        st.info(advice)
+os.unlink(path)
 
 # ==============================
 # MACHINING GUIDE TAB
