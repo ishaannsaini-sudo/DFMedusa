@@ -16,7 +16,7 @@ MODEL = "claude-3-5-sonnet-latest"
 client = anthropic.Anthropic(api_key=API_KEY)
 
 # ==============================
-# AI ENGINE (FIXED)
+# AI ENGINE
 # ==============================
 
 def format_message(role, text):
@@ -78,6 +78,7 @@ def analyze_geometry(mesh):
 
 def run_dfm_checks(geo, thresholds):
     issues = []
+
     min_dim = min(geo["length"], geo["width"], geo["height"])
     max_dim = max(geo["length"], geo["width"], geo["height"])
 
@@ -134,26 +135,59 @@ with tab1:
     file = st.file_uploader("Upload STL", type=["stl"])
 
     if file:
-with tempfile.NamedTemporaryFile(delete=False) as tmp:
-    tmp.write(file.read())
-    path = tmp.name
+        # Save temp file
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(file.read())
+            path = tmp.name
 
-try:
-    mesh = trimesh.load_mesh(path, file_type='stl')
+        try:
+            # Load mesh safely
+            mesh = trimesh.load_mesh(path, file_type='stl')
 
-    # Handle Scene → Mesh conversion
-    if isinstance(mesh, trimesh.Scene):
-        mesh = trimesh.util.concatenate(mesh.dump())
+            # Scene → Mesh fix
+            if isinstance(mesh, trimesh.Scene):
+                mesh = trimesh.util.concatenate(mesh.dump())
 
-    if mesh.is_empty:
-        st.error("Empty or invalid STL file.")
-        st.stop()
+            if mesh.is_empty:
+                st.error("Empty or invalid STL file.")
+                st.stop()
 
-except Exception as e:
-    st.error(f"STL Load Error: {str(e)}")
-    st.stop()
+        except Exception as e:
+            st.error(f"STL Load Error: {str(e)}")
+            st.stop()
 
-os.unlink(path)
+        finally:
+            os.unlink(path)
+
+        # Analyze
+        geo = analyze_geometry(mesh)
+        issues = run_dfm_checks(geo, thresholds)
+        score = calculate_score(issues)
+
+        # Store for other tabs
+        st.session_state["geo"] = geo
+        st.session_state["issues"] = issues
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Geometry")
+            st.json(geo)
+
+        with col2:
+            st.subheader("DFM Score")
+            st.metric("Score", score)
+
+        st.subheader("Issues")
+        if not issues:
+            st.success("No issues detected")
+        else:
+            for i in issues:
+                st.warning(i["msg"])
+
+        st.subheader("AI Advice")
+        advice = get_ai_advice(geo, issues)
+        st.info(advice)
 
 # ==============================
 # MACHINING GUIDE TAB
@@ -175,16 +209,17 @@ with tab3:
     if "geo" not in st.session_state:
         st.warning("Upload a file first")
     else:
-        materials = st.multiselect("Select materials", [
-            "Aluminium 6061",
-            "Steel",
-            "Titanium",
-            "Brass"
-        ])
+        materials = st.multiselect(
+            "Select materials",
+            ["Aluminium 6061", "Steel", "Titanium", "Brass"]
+        )
 
         if len(materials) >= 2:
-            if st.button("Compare"):
-                result = get_material_comparison(st.session_state["geo"], materials)
+            if st.button("Compare Materials"):
+                result = get_material_comparison(
+                    st.session_state["geo"],
+                    materials
+                )
                 st.text_area("Comparison", result, height=400)
 
 # ==============================
@@ -198,10 +233,13 @@ with tab4:
     for msg in st.session_state.chat:
         st.write(f"**{msg['role']}**: {msg['content']}")
 
-    user_input = st.chat_input("Ask...")
+    user_input = st.chat_input("Ask a manufacturing question...")
 
     if user_input:
         st.session_state.chat.append({"role": "user", "content": user_input})
+
         reply = get_chat_response(st.session_state.chat)
+
         st.session_state.chat.append({"role": "assistant", "content": reply})
+
         st.rerun()
