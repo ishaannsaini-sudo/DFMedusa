@@ -471,13 +471,25 @@ Be specific. Use numbers where possible."""
 
 def get_chat_response(messages):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    
+    # Filter to only user and assistant roles
+    clean_messages = []
+    for m in messages:
+        if m["role"] in ["user", "assistant"]:
+            clean_messages.append({
+                "role": m["role"],
+                "content": str(m["content"])
+            })
+    
+    # Must have at least one message
+    if not clean_messages:
+        return "Please ask a question."
+    
     response = client.messages.create(
         model="claude-3-5-sonnet-20241022",
         max_tokens=400,
-        system="""You are a senior DFM (Design for Manufacturing) engineer with 20 years experience in CNC machining, turning, EDM, and precision manufacturing.
-Answer questions concisely and practically. Use specific numbers and values.
-Use line breaks between points. No markdown headers, no bullet symbols, just clean text.""",
-        messages=messages
+        system="You are a senior DFM (Design for Manufacturing) engineer with 20 years experience in CNC machining, turning, EDM, and precision manufacturing. Answer questions concisely and practically. Use specific numbers and values. Use line breaks between points. No markdown headers, no bullet symbols, just clean text.",
+        messages=clean_messages
     )
     return response.content[0].text
 
