@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-ANTHROPIC_API_KEY = st.secrets.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 
 st.markdown("""
 <style>
@@ -402,7 +402,7 @@ Write a concise assessment (max 200 words):
 
 Be direct. Use mm values. No filler sentences."""
     message = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=400,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -433,7 +433,7 @@ Format as numbered steps. Be very specific with tool sizes and parameters.
 Cover: raw stock selection, workholding setup, roughing, finishing, any holes/features, final inspection.
 Max 600 words."""
     message = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -462,7 +462,7 @@ For each material provide:
 End with a clear recommendation of which material to use and why.
 Be specific. Use numbers where possible."""
     message = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -472,7 +472,7 @@ Be specific. Use numbers where possible."""
 def get_chat_response(messages):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     response = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=400,
         system="""You are a senior DFM (Design for Manufacturing) engineer with 20 years experience in CNC machining, turning, EDM, and precision manufacturing.
 Answer questions concisely and practically. Use specific numbers and values.
