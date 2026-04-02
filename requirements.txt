@@ -7,3 +7,4 @@ streamlit
 trimesh
 anthropic
 numpy
+cadquery
