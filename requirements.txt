@@ -7,4 +7,5 @@ streamlit
 trimesh
 anthropic
 numpy
-cadquery
+cadquery==2.3.1
+OCP
