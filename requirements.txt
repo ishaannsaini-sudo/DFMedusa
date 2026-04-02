@@ -3,3 +3,7 @@ trimesh
 anthropic
 numpy
 fpdf2
+streamlit
+trimesh
+anthropic
+numpy
