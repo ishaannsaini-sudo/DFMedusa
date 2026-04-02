@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
-MODEL = "claude-3-5-sonnet-20241022"
+MODEL = "claude-3-sonnet-20240229"
 
 st.markdown("""
 <style>
