@@ -5,7 +5,7 @@ import os
 import anthropic
 import numpy as np
 import json
-import cadquery as cq
+
 
 st.set_page_config(
     page_title="DFM Pro",
