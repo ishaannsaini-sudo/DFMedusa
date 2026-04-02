@@ -5,6 +5,7 @@ import os
 import anthropic
 import numpy as np
 import json
+import cadquery as cq
 
 st.set_page_config(
     page_title="DFM Pro",
@@ -185,23 +186,47 @@ def load_mesh(uploaded_file, file_ext):
     with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
+
     try:
+        # ✅ STL (unchanged)
         if file_ext == ".stl":
             mesh = trimesh.load_mesh(tmp_path, file_type='stl')
+
+        # ✅ STEP FIX (this is what was missing)
+        elif file_ext in [".step", ".stp"]:
+            import cadquery as cq
+            try:
+                shape = cq.importers.importStep(tmp_path)
+
+                # Convert STEP → mesh
+                vertices, faces = shape.val().tessellate(0.1)
+                mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+
+            except Exception as e:
+                st.error("STEP file conversion failed")
+                st.error(str(e))
+                return None
+
         else:
-            mesh = trimesh.load(tmp_path)
+            return None
+
+        # Handle Scene → Mesh (same as your code)
         if isinstance(mesh, trimesh.Scene):
             geometries = list(mesh.geometry.values())
             if geometries:
                 mesh = trimesh.util.concatenate(geometries)
             else:
                 return None
+
         if mesh.is_empty:
             return None
+
         return mesh
+
     except Exception as e:
         st.error(f"Load error: {str(e)}")
         return None
+
     finally:
         os.unlink(tmp_path)
 
@@ -225,7 +250,7 @@ def analyze_geometry(mesh):
     }
 
 
-def detect_features(mesh):
+def detect_features(mesh, geo):
     features = {"holes": [], "thin_regions": [], "complex_surfaces": False}
 
     try:
@@ -233,45 +258,54 @@ def detect_features(mesh):
         face_areas = mesh.area_faces
         total_faces = len(normals)
 
-        # Detect cylindrical features (potential holes)
-        # Group faces by normal direction clustering
         z_facing = np.abs(normals[:, 2])
         horizontal_mask = z_facing < 0.3
         horizontal_faces = np.where(horizontal_mask)[0]
 
         if len(horizontal_faces) > 20:
             centers = mesh.triangles_center[horizontal_faces]
-            # Simple clustering by XY position to find circular patterns
             unique_regions = []
             used = set()
+
             for i, fc in enumerate(centers):
                 if i in used:
                     continue
+
                 nearby = []
                 for j, fc2 in enumerate(centers):
                     if j in used:
                         continue
+
                     dist = np.sqrt((fc[0]-fc2[0])**2 + (fc[1]-fc2[1])**2)
                     if dist < 15:
                         nearby.append(j)
+
                 if len(nearby) > 8:
                     region_centers = centers[nearby]
                     cx = float(np.mean(region_centers[:, 0]))
                     cy = float(np.mean(region_centers[:, 1]))
                     cz = float(np.mean(region_centers[:, 2]))
-                    radii = [np.sqrt((c[0]-cx)**2 + (c[1]-cy)**2) for c in region_centers]
+
+                    radii = [
+                        np.sqrt((c[0]-cx)**2 + (c[1]-cy)**2)
+                        for c in region_centers
+                    ]
+
                     avg_r = float(np.mean(radii))
+
                     if avg_r > 1.0:
                         unique_regions.append({
                             "center": (cx, cy, cz),
                             "diameter": avg_r * 2,
                             "face_count": len(nearby)
                         })
+
                     for j in nearby:
                         used.add(j)
 
             features["holes"] = unique_regions[:6]
 
+        # ✅ FIXED LINE (geo now exists)
         if geo["faces"] > 50000:
             features["complex_surfaces"] = True
 
