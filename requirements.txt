@@ -2,9 +2,10 @@ streamlit
 trimesh
 anthropic
 numpy
-fpdf2
+scipy
 streamlit
 trimesh
 anthropic
 numpy
 cascadio
+networkx
